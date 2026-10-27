@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3a3fd1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Paste & Run">
+<title>Paste &amp; Run</title>
+<style>
+:root{--bg:#eef1f6;--surface:#fff;--ink:#1c2033;--muted:#667085;--line:#d9dee8;--accent:#3a3fd1;--accent-ink:#fff;--run:#ffb020;--run-ink:#2a1c00;--good:#13805a;--warn:#b86e00;--bad:#c42b2b;--code-bg:#fbfcfe;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141f;--surface:#1b1e2e;--ink:#e9ebf5;--muted:#98a0b8;--line:#2c3047;--accent:#8e93ff;--accent-ink:#12141f;--code-bg:#161929;--good:#4fd1a0;--warn:#ffc04d;--bad:#ff7b7b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12141f;--surface:#1b1e2e;--ink:#e9ebf5;--muted:#98a0b8;--line:#2c3047;--accent:#8e93ff;--accent-ink:#12141f;--code-bg:#161929;--good:#4fd1a0;--warn:#ffc04d;--bad:#ff7b7b;color-scheme:dark}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 "Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line)}
+h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em;flex:1}
+button{font:inherit;color:inherit;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;min-height:40px;cursor:pointer}
+button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.run{background:var(--run);color:var(--run-ink);border-color:transparent;font-weight:700;padding:8px 18px}
+main{flex:1;min-height:0;position:relative}
+.pane{position:absolute;inset:0;display:none;flex-direction:column}
+.pane.on{display:flex}
+.tools{display:flex;gap:8px;padding:10px 14px;overflow-x:auto}
+.tools button{white-space:nowrap;font-size:14px}
+textarea{flex:1;margin:0 14px 12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--code-bg);color:var(--ink);font:13px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace;resize:none;tab-size:2;white-space:pre;overflow:auto}
+iframe{flex:1;border:0;background:#fff;width:100%}
+.empty{margin:auto;padding:24px;color:var(--muted);text-align:center;max-width:280px}
+#log{flex:1;overflow:auto;padding:6px 14px 14px;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.ln{padding:6px 8px;border-bottom:1px solid var(--line);white-space:pre-wrap;word-break:break-word}
+.ln.warn{color:var(--warn)}.ln.error{color:var(--bad)}
+#perf{flex:1;overflow:auto;padding:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.m{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.m b{display:block;font-size:22px;letter-spacing:-.02em;margin-top:2px}
+.m span{font-size:12.5px;color:var(--muted)}
+.m.good b{color:var(--good)}.m.warn b{color:var(--warn)}.m.bad b{color:var(--bad)}
+.m.wide{grid-column:1/-1}
+canvas{width:100%;height:70px;display:block;margin-top:6px}
+.note{color:var(--muted);font-size:12.5px;margin:12px 2px 0}
+nav{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--line)}
+nav button{border:0;border-radius:0;min-height:52px;color:var(--muted);font-weight:600;position:relative}
+nav button[aria-selected="true"]{color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
+.badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;line-height:18px}
+.badge[hidden]{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Paste &amp; Run</h1>
+  <button id="theme" aria-label="Toggle theme">Theme</button>
+  <button class="run" id="run">Run</button>
+</header>
+<main>
+  <section class="pane on" id="p-code">
+    <div class="tools">
+      <button id="paste">Paste from clipboard</button>
+      <button id="sample">Load sample</button>
+      <button id="clear">Clear</button>
+    </div>
+    <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" placeholder="Paste your HTML, CSS and JavaScript here, then tap Run."></textarea>
+  </section>
+  <section class="pane" id="p-view">
+    <div class="empty" id="viewEmpty">Nothing to show yet. Paste some HTML and tap Run.</div>
+    <iframe id="frame" title="Preview" sandbox="allow-scripts allow-modals allow-forms allow-popups" hidden></iframe>
+  </section>
+  <section class="pane" id="p-log">
+    <div class="tools"><button id="clearLog">Clear console</button></div>
+    <div id="log"><div class="empty">Console output and errors from your page appear here.</div></div>
+  </section>
+  <section class="pane" id="p-perf">
+    <div id="perf">
+      <div class="grid" id="grid"></div>
+      <div class="m wide" style="margin-top:10px"><span>Frame rate over time</span><canvas id="cv" width="600" height="140"></canvas></div>
+      <p class="note">Measured inside the preview on this device. Heap size shows only in Chromium browsers. Network requests to other sites are blocked here, so pages that load remote files may look slower or broken.</p>
+    </div>
+  </section>
+</main>
+<nav role="tablist">
+  <button role="tab" data-t="code" aria-selected="true">Code</button>
+  <button role="tab" data-t="view" aria-selected="false">Preview</button>
+  <button role="tab" data-t="log" aria-selected="false">Console<span class="badge" id="badge" hidden>0</span></button>
+  <button role="tab" data-t="perf" aria-selected="false">Speed</button>
+</nav>
+<script>
+var $=function(i){return document.getElementById(i)};
+var code=$('code'),frame=$('frame'),logEl=$('log'),errCount=0,fpsHist=[],last=null,runAt=0;
+var SAMPLE='<!DOCTYPE html>\n<html>\n<head>\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<style>\n body{font-family:sans-serif;text-align:center;padding:24px}\n button{font-size:18px;padding:12px 20px;border-radius:10px;border:0;background:#3a3fd1;color:#fff}\n</style>\n</head>\n<body>\n <h2>Tap counter</h2>\n <p id="n">0</p>\n <button onclick="tap()">Tap me</button>\n <script>\n  var c=0;\n  function tap(){c++;document.getElementById("n").textContent=c;console.log("tapped",c)}\n  console.log("page ready");\n<\/script>\n</body>\n</html>';
+
+// storage (guarded)
+try{var s=localStorage.getItem('pr-code');if(s)code.value=s;var th=localStorage.getItem('pr-theme');if(th)document.documentElement.setAttribute('data-theme',th)}catch(e){}
+function save(){try{localStorage.setItem('pr-code',code.value)}catch(e){}}
+code.addEventListener('input',save);
+
+// tabs
+function tab(t){
+  document.querySelectorAll('.pane').forEach(function(p){p.classList.toggle('on',p.id==='p-'+t)});
+  document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-selected',b.dataset.t===t)});
+  if(t==='log'){errCount=0;$('badge').hidden=true}
+  if(t==='perf')draw();
+}
+document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){tab(b.dataset.t)}});
+
+// buttons
+$('paste').onclick=async function(){
+  try{var t=await navigator.clipboard.readText();if(t){code.value=t;save()}}
+  catch(e){code.focus();alert('Clipboard access was blocked. Long-press in the box and choose Paste.')}
+};
+$('sample').onclick=function(){code.value=SAMPLE;save()};
+$('clear').onclick=function(){code.value='';save();code.focus()};
+$('clearLog').onclick=function(){logEl.innerHTML='';errCount=0;$('badge').hidden=true};
+$('theme').onclick=function(){
+  var r=document.documentElement,dark=getComputedStyle(r).colorScheme==='dark',n=dark?'light':'dark';
+  r.setAttribute('data-theme',n);try{localStorage.setItem('pr-theme',n)}catch(e){}
+};
+
+// injected into the user's page: forwards console, errors and timing
+var INJ='<scr'+'ipt>(function(){'+
+'function send(t,d){try{parent.postMessage({pg:1,t:t,d:d},"*")}catch(e){}}'+
+'["log","info","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){var a=[].slice.call(arguments).map(function(x){try{return typeof x==="object"?JSON.stringify(x):String(x)}catch(e){return String(x)}}).join(" ");send("log",{k:k,m:a});try{o.apply(console,arguments)}catch(e){}}});'+
+'addEventListener("error",function(e){send("log",{k:"error",m:(e.message||"Script error")+(e.lineno?" (line "+e.lineno+")":"")})});'+
+'addEventListener("unhandledrejection",function(e){send("log",{k:"error",m:"Unhandled promise rejection: "+e.reason})});'+
+'var m={dcl:null,load:null,lt:0,ltMs:0},fr=0,lt=performance.now(),fl=[];'+
+'document.addEventListener("DOMContentLoaded",function(){m.dcl=performance.now()});'+
+'addEventListener("load",function(){m.load=performance.now();rep()});'+
+'try{new PerformanceObserver(function(l){l.getEntries().forEach(function(e){m.lt++;m.ltMs+=e.duration})}).observe({entryTypes:["longtask"]})}catch(e){}'+
+'function tick(n){fr++;if(n-lt>=1000){fl.push(fr*1000/(n-lt));fr=0;lt=n;if(fl.length>40)fl.shift();rep()}requestAnimationFrame(tick)}requestAnimationFrame(tick);'+
+'function rep(){var p=performance.getEntriesByType("paint").filter(function(x){return x.name==="first-contentful-paint"})[0];'+
+'send("perf",{dcl:m.dcl,load:m.load,fcp:p?p.startTime:null,lt:m.lt,ltMs:m.ltMs,nodes:document.getElementsByTagName("*").length,heap:performance.memory?performance.memory.usedJSHeapSize:null,fps:fl.slice()})}'+
+'})();<\/scr'+'ipt>';
+
+function build(src){
+  var m=src.match(/^\s*<!doctype[^>]*>/i);
+  return m?src.slice(0,m[0].length)+INJ+src.slice(m[0].length):INJ+src;
+}
+
+$('run').onclick=function(){
+  var src=code.value;
+  if(!src.trim()){tab('code');code.focus();return}
+  save();last=null;fpsHist=[];errCount=0;$('badge').hidden=true;
+  logEl.innerHTML='';addLog('info','— Run started —');
+  $('viewEmpty').style.display='none';frame.hidden=false;
+  runAt=Date.now();
+  frame.srcdoc=build(src);
+  tab('view');
+  renderPerf();
+};
+
+function addLog(k,m){
+  var d=document.createElement('div');d.className='ln '+(k==='warn'||k==='error'?k:'');
+  d.textContent=m;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;
+}
+window.addEventListener('message',function(e){
+  if(e.source!==frame.contentWindow||!e.data||!e.data.pg)return;
+  if(e.data.t==='log'){
+    addLog(e.data.d.k,e.data.d.m);
+    if(e.data.d.k==='error'){errCount++;var b=$('badge'),on=document.getElementById('p-log').classList.contains('on');if(!on){b.textContent=errCount;b.hidden=false}}
+  }else if(e.data.t==='perf'){last=e.data.d;fpsHist=last.fps;renderPerf();if(document.getElementById('p-perf').classList.contains('on'))draw()}
+});
+
+function f(v,u,d){return v==null?'…':(+v).toFixed(d==null?0:d)+(u||'')}
+function cls(v,g,w){return v==null?'':v<=g?'good':v<=w?'warn':'bad'}
+function renderPerf(){
+  var d=last||{},fl=d.fps||[],avg=fl.length?fl.reduce(function(a,b){return a+b},0)/fl.length:null,min=fl.length?Math.min.apply(null,fl):null;
+  var size=new Blob([code.value]).size;
+  function card(l,v,c,w){return '<div class="m '+(c||'')+(w?' wide':'')+'"><span>'+l+'</span><b>'+v+'</b></div>'}
+  $('grid').innerHTML=
+    card('Page ready (load)',f(d.load,' ms'),cls(d.load,800,2000))+
+    card('First paint',f(d.fcp,' ms'),cls(d.fcp,600,1500))+
+    card('DOM ready',f(d.dcl,' ms'),cls(d.dcl,500,1500))+
+    card('Elements on page',f(d.nodes),d.nodes==null?'':d.nodes<1500?'good':d.nodes<4000?'warn':'bad')+
+    card('Average FPS',f(avg,'',0),avg==null?'':avg>=55?'good':avg>=30?'warn':'bad')+
+    card('Lowest FPS',f(min,'',0),min==null?'':min>=50?'good':min>=24?'warn':'bad')+
+    card('Slow tasks (50 ms+)',d.lt==null?'…':d.lt+(d.lt?' · '+Math.round(d.ltMs)+' ms':''),d.lt==null?'':d.lt===0?'good':d.lt<4?'warn':'bad')+
+    card('Memory used',d.heap?(d.heap/1048576).toFixed(1)+' MB':'n/a','')+
+    card('Code size',size>1024?(size/1024).toFixed(1)+' KB':size+' B','',true);
+}
+function draw(){
+  var c=$('cv'),x=c.getContext('2d'),w=c.width,h=c.height,st=getComputedStyle(document.documentElement);
+  x.clearRect(0,0,w,h);
+  x.strokeStyle=st.getPropertyValue('--line');x.lineWidth=1;
+  [30,60].forEach(function(v){var y=h-v/60*(h-10)-5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()});
+  if(fpsHist.length<2)return;
+  x.strokeStyle=st.getPropertyValue('--accent');x.lineWidth=3;x.lineJoin='round';x.beginPath();
+  fpsHist.forEach(function(v,i){var px=i/(Math.max(fpsHist.length-1,1))*w,py=h-Math.min(v,60)/60*(h-10)-5;i?x.lineTo(px,py):x.moveTo(px,py)});
+  x.stroke();
+}
+if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+renderPerf();
+</script>
+</body>
+</html>
