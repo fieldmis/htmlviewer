@@ -1,6 +1,7 @@
 {
   "name": "Paste & Run",
   "short_name": "Paste & Run",
+  "id": "paste-and-run",
   "description": "Paste HTML, run it, and check how it performs.",
   "start_url": "./",
   "scope": "./",
